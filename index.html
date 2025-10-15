@@ -1,286 +1,35 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Status da Frota – Souza</title>
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#2e7d32" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Status da Frota - Souza</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2e7d32">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { background-color: #fff; color: #222; font-family: 'Segoe UI', sans-serif; transition: background-color 0.3s, color 0.3s; }
-    body.dark-mode { background-color: #1c1c1c; color: #f0f0f0; }
-    .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px; }
-    .top-bar img { height: 50px; }
-    .nav-btns button { margin-left: 10px; }
-    #mapSection, #prodSection { display: none; }
-    #mapSection.active, #prodSection.active { display: block; }
-    #map { height: 400px; border-radius: 12px; margin: 10px 0; }
-    .card-stat { border-radius: 8px; padding: 12px; margin: 6px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    .prod-table { width: 100%; margin-top: 10px; border-collapse: collapse; }
-    .prod-table th, .prod-table td { padding: 8px; text-align: left; border-bottom: 1px solid #ccc; }
-    .chart-container { width: 100%; margin-top: 20px; }
-    .btn-back { margin-top: 10px; }
-    .filter-bar .form-select { font-size: 0.85rem; }
-    .truck-label { color: white; font-weight: 600; text-shadow: 0 0 4px rgba(0,0,0,0.8); font-size: 12px; }
+    body { background-color: #fff; font-family: 'Segoe UI', sans-serif; padding: 15px; transition: background-color 0.3s, color 0.3s; }
+    body.dark-mode { background-color: #1c1c1c; color: #fff; }
+    .card { border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); transition: all 0.2s; background-color: #fff; color: #000; }
+    body.dark-mode .card { background-color: #2b2b2b; color: #fff; }
+    .btn-darkmode { border-radius: 30px; padding: 6px 20px; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="top-bar">
-      <img src="logo.png" alt="Logo Souza" />
-      <div class="nav-btns">
-        <button id="btnMapa" class="btn btn-outline-primary btn-sm">🚛 Frota</button>
-        <button id="btnProd" class="btn btn-outline-success btn-sm">📊 Produtividade</button>
-        <button id="darkModeBtn" class="btn btn-outline-dark btn-sm">🌙</button>
-      </div>
-    </div>
-
-    <!-- Seção do mapa -->
-    <div id="mapSection" class="active">
-      <button id="refreshBtn" class="btn btn-success btn-sm mt-2">🔄 Atualizar</button>
-      <div class="filter-bar d-flex gap-2 mt-2">
-        <select id="filtroStatus" class="form-select form-select-sm"><option value="">Todos os Status</option></select>
-        <select id="filtroProduto" class="form-select form-select-sm"><option value="">Todos os Produtos</option></select>
-        <select id="filtroCidade" class="form-select form-select-sm"><option value="">Todas as Cidades</option></select>
-        <select id="filtroDestino" class="form-select form-select-sm"><option value="">Todos os Destinos</option></select>
-      </div>
-      <div id="resumoContainer" class="mt-3 card-stat">
-        <strong>Resumo:</strong> <span id="resumoTexto">Carregando dados...</span>
-      </div>
-      <div id="map"></div>
-      <div id="frotaContainer" class="row g-3 mt-2"></div>
-    </div>
-
-    <!-- Seção de produtividade -->
-    <div id="prodSection">
-      <button id="btnBackToMap" class="btn btn-outline-secondary btn-sm btn-back">⬅️ Voltar</button>
-      <h5 class="mt-3">Produtividade da Frota</h5>
-      <div id="statsCards" class="mt-2"></div>
-      <table id="tblProd" class="prod-table"></table>
-      <h5 class="mt-4">Volume Entregue nas Fazendas</h5>
-      <table id="tblFazendas" class="prod-table"></table>
-      <div class="chart-container">
-        <canvas id="chartProd"></canvas>
-      </div>
-    </div>
+  <div class="text-center mb-3 d-flex justify-content-center gap-2">
+    <button id="refreshBtn" class="btn btn-success btn-sm">🔄 Atualizar</button>
+    <button id="produtividadeBtn" class="btn btn-outline-success btn-sm">📊 Produtividade</button>
+    <button id="darkModeBtn" class="btn btn-outline-dark btn-sm btn-darkmode">🌙 Modo Escuro</button>
   </div>
-
+  <div id="map" style="height: 450px;"></div>
+  <div class="container mt-3" id="frotaContainer"></div>
   <script>
-    const scriptURLProd = "https://script.google.com/macros/s/AKfycbySsF18HgJiHmgOvLs-wpsYtdXxFwlroZHi-GJNNv97hs9BwsNpEkT_4ZRUISz8ijKnBQ/exec";
-    // Você ainda deve manter seu script da frota (o endpoint original) em outra variável se quiser combinar os dados.
-
-    let map, markers = [], dadosFrota = [];
-
-    document.getElementById('btnMapa').onclick = () => showSection('map');
-    document.getElementById('btnProd').onclick = () => showSection('prod');
-    document.getElementById('btnBackToMap').onclick = () => showSection('map');
-    document.getElementById('darkModeBtn').onclick = () => document.body.classList.toggle('dark-mode');
-
-    function showSection(sec) {
-      document.getElementById('mapSection').classList.remove('active');
-      document.getElementById('prodSection').classList.remove('active');
-      if (sec === 'map') document.getElementById('mapSection').classList.add('active');
-      if (sec === 'prod') document.getElementById('prodSection').classList.add('active');
-    }
-
-    function getTruckIcon(color) {
-      return L.divIcon({ className: "truck-icon", html: `<div style="font-size:22px;color:${color};">🚛</div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
-    }
-
-    async function geocodeCidade(cidade) {
-      try {
-        const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cidade + ', Brasil')}`);
-        const d = await resp.json();
-        if (d && d.length > 0) return [parseFloat(d[0].lat), parseFloat(d[0].lon)];
-      } catch(e) { console.warn('geocode erro', cidade); }
-      return null;
-    }
-
-    async function atualizarMapa(dados) {
-      if (!map) {
-        map = L.map('map').setView([-15.78, -47.93], 5);
-        const hybrid = L.tileLayer('https://{s}.google.com/vt/lyrs=y,m&x={x}&y={y}&z={z}', { subdomains:['mt0','mt1','mt2','mt3'] }).addTo(map);
-        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
-        L.control.layers({ "Híbrido": hybrid, "OSM": osm }).addTo(map);
-      }
-      markers.forEach(m => map.removeLayer(m));
-      markers = [];
-      const group = [];
-
-      for (const v of dados) {
-        const cidade = v["Posição"] || "";
-        const frota = v.Frota || "";
-        const status = (v.Status || "").toLowerCase();
-        const color = status.includes("carregado") ? "green" : status.includes("descarregando") ? "orange" : "red";
-        let pos = null;
-        const lat = parseFloat(v.Latitude);
-        const lon = parseFloat(v.Longitude);
-        if (!isNaN(lat) && !isNaN(lon)) {
-          pos = [lat + (Math.random()-0.5)*0.02, lon + (Math.random()-0.5)*0.02];
-        } else {
-          const latlng = await geocodeCidade(cidade);
-          if (latlng) pos = [latlng[0] + (Math.random()-0.5)*0.02, latlng[1] + (Math.random()-0.5)*0.02];
-        }
-        if (pos) {
-          const icon = getTruckIcon(color);
-          const marker = L.marker(pos, { icon }).addTo(map);
-          marker.bindPopup(`<b>${frota}</b><br>${v.Status}<br>${v.Produto}<br>${v["Posição"]}<br><b>Destino:</b> ${v.Destino || '-'}`);
-          const label = L.divIcon({ className: 'truck-label', html: frota, iconSize: [100, 20], iconAnchor: [50, -15] });
-          L.marker(pos, { icon: label }).addTo(map);
-          markers.push(marker);
-          group.push(marker);
-        }
-      }
-      if (group.length) {
-        map.fitBounds(L.featureGroup(group).getBounds(), { padding: [30, 30] });
-      }
-    }
-
-    function renderizarFrota(dados) {
-      const container = document.getElementById("frotaContainer");
-      const resumoEl = document.getElementById("resumoTexto");
-      container.innerHTML = "";
-
-      const total = dados.length;
-      const carregado = dados.filter(v => v.Status.toLowerCase().includes("carregado")).length;
-      const descarregando = dados.filter(v => v.Status.toLowerCase().includes("descarregando")).length;
-      const parado = total - carregado - descarregando;
-
-      resumoEl.innerHTML = `Total: <b>${total}</b> | Carregados: <b>${carregado}</b> | Descarregando: <b>${descarregando}</b> | Vazios: <b>${parado}</b>`;
-
-      dados.forEach(v => {
-        const status = (v.Status || "").toLowerCase();
-        const statusClass = status.includes("carregado") ? "status-carregado" : status.includes("descarregando") ? "status-descarregando" : "status-parado";
-        const card = `<div class="col-6 col-md-3"><div class="card card-stat p-2"><h6>${v.Frota || '-'}</h6><p class="${statusClass}">${v.Status || '-'}</p><p><strong>Produto:</strong> ${v.Produto || '-'}</p><p><strong>Posição:</strong> ${v["Posição"] || '-'}</p><p><strong>Destino:</strong> ${v.Destino || '-'}</p><button class="btn btn-sm btn-outline-success" onclick="destacarCaminhao('${v.Frota}')">📍 Mapa</button></div></div>`;
-        container.innerHTML += card;
-      });
-
-      atualizarMapa(dados);
-    }
-
-    async function buscarDados() {
-      document.getElementById("resumoTexto").innerText = "Carregando...";
-      try {
-        // Buscando dados da produtividade
-        const resp = await fetch(scriptURLProd + '?t=' + Date.now());
-        const data = await resp.json();
-        if (data.erro) {
-          alert("Erro no script de produtividade: " + data.mensagem);
-          return;
-        }
-        const prod = data.produtividade || [];
-        // Supondo que os dados da frota são iguais à produtividade para esse exemplo
-        dadosFrota = prod;
-        preencherFiltros(prod);
-        renderizarFrota(prod);
-        buildProdSection(data);
-      } catch (err) {
-        console.error("Erro ao buscar dados:", err);
-      }
-    }
-
-    function preencherFiltros(dados) {
-      const statusSet = new Set(), produtoSet = new Set(), cidadeSet = new Set(), destinoSet = new Set();
-      dados.forEach(v => {
-        statusSet.add(v.Status);
-        produtoSet.add(v.Produto);
-        cidadeSet.add(v["Posição"]);
-        destinoSet.add(v.Destino);
-      });
-      const preencher = (id, set) => {
-        const sel = document.getElementById(id);
-        sel.innerHTML = `<option value="">—</option>`;
-        set.forEach(v => { if (v) sel.innerHTML += `<option value="${v}">${v}</option>`; });
-      };
-      preencher("filtroStatus", statusSet);
-      preencher("filtroProduto", produtoSet);
-      preencher("filtroCidade", cidadeSet);
-      preencher("filtroDestino", destinoSet);
-      document.querySelectorAll('.filter-bar select').forEach(sel => sel.onchange = aplicarFiltros);
-    }
-
-    function aplicarFiltros() {
-      const fStatus = document.getElementById("filtroStatus").value.toLowerCase();
-      const fProduto = document.getElementById("filtroProduto").value.toLowerCase();
-      const fCidade = document.getElementById("filtroCidade").value.toLowerCase();
-      const fDestino = document.getElementById("filtroDestino").value.toLowerCase();
-
-      const filtrados = dadosFrota.filter(v =>
-        (!fStatus || (v.Status || '').toLowerCase().includes(fStatus)) &&
-        (!fProduto || (v.Produto || '').toLowerCase().includes(fProduto)) &&
-        (!fCidade || (v["Posição"] || '').toLowerCase().includes(fCidade)) &&
-        (!fDestino || (v.Destino || '').toLowerCase().includes(fDestino))
-      );
-      renderizarFrota(filtrados);
-    }
-
-    function buildProdSection(data) {
-      const stats = { peso: 0, viagens: 0, fatur: 0, comissao: 0 };
-      (data.produtividade || []).forEach(v => {
-        stats.peso += parseFloat(v.PESO_CARREGADO) || 0;
-        stats.viagens += parseFloat(v.VIAGEM) || 0;
-        stats.fatur += parseFloat(v.FATURAMENTO_FRETE) || 0;
-        stats.comissao += parseFloat(v.COMISSAO) || 0;
-      });
-
-      const sc = document.getElementById("statsCards");
-      sc.innerHTML = `
-        <div class="card card-stat"><strong>Peso Total:</strong> ${stats.peso.toFixed(2)} Ton</div>
-        <div class="card card-stat"><strong>Viagens Totais:</strong> ${stats.viagens}</div>
-        <div class="card card-stat"><strong>Faturamento Total:</strong> R$ ${stats.fatur.toFixed(2)}</div>
-        <div class="card card-stat"><strong>Comissão Total:</strong> R$ ${stats.comissao.toFixed(2)}</div>
-      `;
-
-      const tblP = document.getElementById("tblProd");
-      tblP.innerHTML = "";
-      const keys = data.produtividade.length ? Object.keys(data.produtividade[0]) : [];
-      if (keys.length) {
-        tblP.innerHTML += "<tr>" + keys.map(k => `<th>${k}</th>`).join('') + "</tr>";
-      }
-      data.produtividade.forEach(r => {
-        tblP.innerHTML += "<tr>" + keys.map(k => `<td>${r[k] != null ? r[k] : ''}</td>`).join('') + "</tr>";
-      });
-
-      const tblF = document.getElementById("tblFazendas");
-      tblF.innerHTML = "";
-      if (data.fazendas && data.fazendas.length) {
-        const keysF = Object.keys(data.fazendas[0]);
-        tblF.innerHTML += "<tr>" + keysF.map(k => `<th>${k}</th>`).join('') + "</tr>";
-        data.fazendas.forEach(r => {
-          tblF.innerHTML += "<tr>" + keysF.map(k => `<td>${r[k] != null ? r[k] : ''}</td>`).join('') + "</tr>";
-        });
-      }
-
-      const ctx = document.getElementById("chartProd").getContext("2d");
-      const labels = data.produtividade.map(r => r.MOTORISTA);
-      const values = data.produtividade.map(r => parseFloat(r.PESO_CARREGADO) || 0);
-      new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Peso Carregado (Ton)',
-            data: values,
-            backgroundColor: 'rgba(46, 125, 50, 0.7)'
-          }]
-        },
-        options: { responsive: true, scales: { y: { beginAtZero: true } } }
-      });
-    }
-
-    document.getElementById("refreshBtn").addEventListener("click", buscarDados);
-    window.onload = () => {
-      showSection('map');
-      buscarDados();
-    };
-
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js').then(() => console.log("SW registrado"));
-    }
+    const scriptURL = "https://script.google.com/macros/s/AKfycbyH4y5jntGwQUewTj2kU3Jw-nqcTrhDmqA6UNH-n_P2xSL65nUzUtVJGYIcecqBPCBn/exec";
+    document.getElementById('produtividadeBtn').addEventListener('click', () => window.location.href='produtividade.html');
+    document.getElementById('darkModeBtn').addEventListener('click', () => document.body.classList.toggle('dark-mode'));
   </script>
 </body>
 </html>
