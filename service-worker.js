@@ -1,8 +1,8 @@
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open('status-frota-v1').then(cache => {
-    return cache.addAll(['/', '/index.html', '/produtividade.html', '/manifest.json']);
-  }));
-});
-self.addEventListener('fetch', e => {
-  e.respondWith(caches.match(e.request).then(resp => resp || fetch(e.request)));
+const CACHE_NAME = 'status-frota-v2';
+self.addEventListener('fetch', event => {
+  if (event.request.url.includes('script.google.com')) {
+    event.respondWith(fetch(event.request));
+  } else {
+    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+  }
 });
