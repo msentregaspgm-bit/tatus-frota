@@ -1,4 +1,4 @@
-const CACHE_NAME = 'status-frota-v2';
+const CACHE_NAME = 'status-frota-v3';
 self.addEventListener('fetch', event => {
   if (event.request.url.includes('script.google.com')) {
     event.respondWith(fetch(event.request));

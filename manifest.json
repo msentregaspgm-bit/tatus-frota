@@ -1,6 +1,6 @@
 {
-  "name": "Status Frota",
-  "short_name": "Frota",
+  "name": "Status Frota - Souza",
+  "short_name": "Status Frota",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
