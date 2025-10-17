@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Souza Transportes - Dashboard</title>
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2e7d32">
+
+  <!-- CSS libs -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/leaflet.fullscreen.css" />
+
+  <!-- JS libs -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://api.mapbox.com/mapbox.js/plugins/leaflet-fullscreen/v1.0.1/Leaflet.fullscreen.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+  <style>
+    :root{ --verde:#2e7d32; --muted:#6c757d; --card:#ffffff; }
+    body{ margin:0; font-family:Inter,"Segoe UI",Roboto,Arial,sans-serif; background:#f7f7f8; color:#111; }
+    header{ display:flex; align-items:center; gap:12px; padding:12px; background:var(--card); box-shadow:0 1px 6px rgba(0,0,0,0.04); position:sticky; top:0; z-index:1200; }
+    .logo{ width:56px; height:56px; object-fit:cover; border-radius:8px; }
+    .title-wrap{ text-align:center; flex:1; }
+    .title{ margin:0; color:var(--verde); font-size:18px; font-weight:700; }
+    .subtitle{ font-size:13px; color:var(--muted); margin-top:2px; }
+    .tabs{ display:flex; gap:8px; padding:10px; justify-content:center; background:#fff; border-bottom:1px solid #eef0f2; flex-wrap:wrap; }
+    .tab-btn{ border-radius:10px; padding:8px 14px; font-weight:600; border:none; background:#f1f5f3; color:#222; cursor:pointer; }
+    .tab-btn.active{ background:var(--verde); color:#fff; box-shadow:inset 0 -3px 0 rgba(0,0,0,0.06); }
+    .container-main{ padding:12px; max-width:1200px; margin:0 auto; }
+    .section{ display:none; }
+    .section.active{ display:block; }
+    #map{ height:420px; border-radius:12px; overflow:hidden; box-shadow:0 6px 20px rgba(0,0,0,0.06); }
+    .map-legend{ position:absolute; right:14px; bottom:14px; background:rgba(255,255,255,0.95); padding:8px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.12); color:#333; font-size:13px; z-index:9999; }
+    .map-legend div{ display:flex; gap:8px; align-items:center; margin-bottom:6px; }
+    .map-legend span{ width:14px; height:14px; display:inline-block; border-radius:4px; }
+    .card-kpi{ padding:12px; border-radius:10px; background:var(--card); box-shadow:0 4px 12px rgba(0,0,0,0.04); }
+    .kpi-label{ font-size:12px; color:var(--muted); }
+    .kpi-value{ font-weight:700; font-size:20px; color:var(--verde); }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" class="logo" alt="Souza Transportes">
+    <div class="title-wrap">
+      <div class="title">Souza Transportes</div>
+      <div class="subtitle" id="appLegend">🚛 Status da Frota</div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="status">🚛 Status Frota</button>
+    <button class="tab-btn" data-tab="prod">📈 Produtividade</button>
+    <button class="tab-btn" data-tab="vol">📊 Volume Entregue</button>
+  </div>
+
+  <main class="container-main">
+    <!-- STATUS -->
+    <section id="section-status" class="section active">
+      <div id="mapWrapper" style="position:relative;">
+        <div id="map"></div>
+        <div class="map-legend">
+          <div><span style="background:green"></span>Carregado</div>
+          <div><span style="background:orange"></span>Descarregando</div>
+          <div><span style="background:red"></span>Vazio</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRODUTIVIDADE -->
+    <section id="section-prod" class="section">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+        <div style="flex:1;min-width:150px;"><div class="card-kpi"><div class="kpi-label">Faturamento Total</div><div id="fatTotal" class="kpi-value">--</div></div></div>
+        <div style="min-width:150px;"><div class="card-kpi"><div class="kpi-label">Comissão Total</div><div id="comTotal" class="kpi-value">--</div></div></div>
+        <div style="min-width:150px;"><div class="card-kpi"><div class="kpi-label">Peso (ton)</div><div id="pesoTotal" class="kpi-value">--</div></div></div>
+        <div style="min-width:150px;"><div class="card-kpi"><div class="kpi-label">Viagens</div><div id="viagensTotal" class="kpi-value">--</div></div></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="card-kpi"><canvas id="chartPeso"></canvas></div>
+        <div class="card-kpi"><canvas id="chartCom"></canvas></div>
+      </div>
+    </section>
+
+    <!-- VOLUME -->
+    <section id="section-vol" class="section">
+      <div style="margin-bottom:12px;">
+        <div class="card-kpi"><div class="kpi-label">Entregue (total)</div><div id="volTotal" class="kpi-value">--</div></div>
+      </div>
+      <div id="volumeList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </section>
+  </main>
+
+  <footer style="padding:12px;text-align:center;color:#666;">© 2025 Souza Transportes</footer>
+
+  <script>
+  (function(){
+    const scriptURL = "https://script.google.com/macros/s/AKfycbyZDvHD4CCG4xAbuIjckNApANUkDow8uifF96C1R5DRKd4soQJVZKvNoWJ6hLDPyc5n/exec";
+    let map=null, charts=[];
+
+    function fmtBRL(v){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Math.round(v||0));}
+    function fmtNum(v,dp=1){return Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:dp});}
+
+    function initMap(){
+      if(map) return;
+      map=L.map('map',{fullscreenControl:true}).setView([-15.78,-47.93],5);
+      const hybrid=L.tileLayer('https://{s}.google.com/vt/lyrs=y,m&x={x}&y={y}&z={z}',{maxZoom:20,subdomains:['mt0','mt1','mt2','mt3']}).addTo(map);
+      const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+      L.control.layers({"🛰️ Híbrido (Google)":hybrid,"🗺️ OpenStreetMap":osm}).addTo(map);
+    }
+
+    async function loadProdutividade(){
+      try{
+        const res=await fetch(`${scriptURL}?aba=produtividade&t=${Date.now()}`);
+        const arr=await res.json()||[];
+        const byPeso={},byCom={};
+        let fat=0,com=0,peso=0,viagens=0;
+        arr.forEach(r=>{
+          const m=(r.MOTORISTA||r.Motorista||'—').split(' ')[0];
+          const p=parseFloat(r['PESO CARREGADO (TON)']||r.PESO||0)||0;
+          const f=parseFloat(r['FATURAMENTO FRETE']||r['FATURAMENTO TOTAL']||r.FATURAMENTO||0)||0;
+          const c=parseFloat(r['COMISSÃO (12%)']||r['COMISSAO TOTAL']||r.COMISSAO||0)||0;
+          const v=parseInt(r.VIAGEM||r.VIAGENS||0)||0;
+          byPeso[m]=(byPeso[m]||0)+p;byCom[m]=(byCom[m]||0)+c;
+          fat+=f;com+=c;peso+=p;viagens+=v;
+        });
+        document.getElementById('fatTotal').innerText=fmtBRL(fat);
+        document.getElementById('comTotal').innerText=fmtBRL(com);
+        document.getElementById('pesoTotal').innerText=fmtNum(peso,1)+' ton';
+        document.getElementById('viagensTotal').innerText=viagens;
+        charts.forEach(c=>{try{c.destroy();}catch{}});
+        charts=[];
+        const pesoPairs=Object.entries(byPeso).sort((a,b)=>b[1]-a[1]);
+        const comPairs=Object.entries(byCom).sort((a,b)=>b[1]-a[1]);
+        const ctxP=document.getElementById('chartPeso').getContext('2d');
+        charts.push(new Chart(ctxP,{type:'bar',plugins:[ChartDataLabels],data:{labels:pesoPairs.map(p=>p[0]),datasets:[{label:'Peso (ton)',data:pesoPairs.map(p=>p[1]),backgroundColor:'#2e7d32'}]},options:{plugins:{legend:{display:true},datalabels:{color:'#111',anchor:'end',align:'right',formatter:v=>fmtNum(v,1)}}}}));
+        const ctxC=document.getElementById('chartCom').getContext('2d');
+        charts.push(new Chart(ctxC,{type:'bar',plugins:[ChartDataLabels],data:{labels:comPairs.map(p=>p[0]),datasets:[{label:'Comissão (R$)',data:comPairs.map(p=>p[1]),backgroundColor:'#ff9800'}]},options:{plugins:{legend:{display:true},datalabels:{color:'#111',anchor:'end',align:'right',formatter:v=>fmtBRL(v)}}}}));
+      }catch(e){console.error(e);}
+    }
+
+    async function loadVolume(){
+      try{
+        const res=await fetch(`${scriptURL}?aba=volume&t=${Date.now()}`);
+        const arr=await res.json()||[];
+        const byFaz={};let totalEnt=0;
+        arr.forEach(r=>{
+          const faz=(r.FAZENDA||r.Fazenda||r.fazenda||'').trim();
+          const prod=(r.PRODUTO||r.Produto||r.produto||'').trim();
+          const pedido=r.Pedido||r.PEDIDO||r.pedido||null;
+          const vol=parseFloat(r['VOLUME ENTREGUE (TON)']||r.VOLUME||0)||0;
+          const saldo=parseFloat(r.SALDO||r.saldo||0)||0;
+          if(!faz||!prod)return;
+          if(!byFaz[faz])byFaz[faz]={};
+          if(!byFaz[faz][prod])byFaz[faz][prod]={pedido:null,entregue:0,saldo:0};
+          if(pedido)byFaz[faz][prod].pedido=pedido;
+          byFaz[faz][prod].entregue+=vol;byFaz[faz][prod].saldo+=saldo;
+          totalEnt+=vol;
+        });
+        document.getElementById('volTotal').innerText=fmtNum(totalEnt,1)+' ton';
+        const c=document.getElementById('volumeList');c.innerHTML='';
+        Object.keys(byFaz).sort().forEach(faz=>{
+          let html=`<div class='card card-kpi p-2'><strong>🌾 ${faz}</strong><div class='mt-2'>`;
+          Object.entries(byFaz[faz]).forEach(([prod,info])=>{
+            html+=`<div style='padding:8px 0;border-bottom:1px dashed #eee'><div style='font-weight:600'>${prod}</div><div style='font-size:13px'>Pedido: <b>${info.pedido||'-'}</b> | Entregue: <b>${fmtNum(info.entregue,1)} ton</b> | Saldo: <b>${fmtNum(info.saldo,1)} ton</b></div></div>`;
+          });
+          html+='</div></div>';c.insertAdjacentHTML('beforeend',html);
+        });
+      }catch(e){console.error(e);}
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+        if(btn.dataset.tab==='status'){document.getElementById('section-status').classList.add('active');initMap();}
+        if(btn.dataset.tab==='prod'){document.getElementById('section-prod').classList.add('active');loadProdutividade();}
+        if(btn.dataset.tab==='vol'){document.getElementById('section-vol').classList.add('active');loadVolume();}
+      });
+    });
+
+    initMap();
+  })();
+  </script>
+</body>
+</html>
