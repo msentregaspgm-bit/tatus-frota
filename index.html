@@ -1,83 +1,69 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Souza Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Controle de Pneus</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="icon" href="logoPneu.png"/>
+  <script defer src="script.js"></script>
   <style>
-    :root {
-      --verde-souza: #2e7d32;
-      --bg: #ffffff;
-      --text: #212529;
+    :root { --green:#1c8c3a; --card-bg:#fff; --page-bg:#f6f6f6; --muted:#666; }
+    *{box-sizing:border-box}
+    body { font-family:Inter,Arial,Helvetica,sans-serif;margin:0;background:var(--page-bg); color:#222; }
+    header { display:flex; align-items:center; gap:12px; background:var(--green);color:#fff;padding:10px 14px; }
+    header img { width:42px; height:42px; object-fit:contain; margin-left:6px; }
+    header h1 { font-size:1.05rem; margin:0; font-weight:700; }
+    main { max-width:980px;margin:18px auto;padding:12px; }
+    .search-row { display:flex; gap:10px; align-items:center; margin-bottom:12px; }
+    .search-row input { flex:1; padding:10px;border-radius:8px;border:1px solid #ddd; font-size:15px; }
+    .btns { display:flex; gap:8px; }
+    button { background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px 14px;cursor:pointer;font-size:14px; }
+    .layout { display:grid; grid-template-columns: 1fr; gap:12px; }
+    .card { background:var(--card-bg);border-radius:12px;padding:14px; box-shadow:0 6px 18px rgba(0,0,0,0.06); }
+    .card h3 { margin:0 0 10px 0; font-size:1.05rem; color:var(--green); }
+    .fields { display:grid; grid-template-columns: repeat(2,1fr); gap:10px; }
+    label { font-size:13px; color:#333; display:block; margin-bottom:6px; font-weight:600; }
+    input[type="text"], input[type="date"], select {
+      width:100%; padding:9px;border-radius:8px;border:1px solid #e0e0e0;font-size:14px;
     }
-    body {
-      background-color: var(--bg);
-      color: var(--text);
-      font-family: 'Segoe UI', sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-      transition: background-color 0.3s, color 0.3s;
-    }
-    body.dark-mode {
-      background-color: #1c1c1c;
-      color: #f1f1f1;
-    }
-    .logo {
-      width: 180px;
-      margin-bottom: 30px;
-    }
-    .btn-menu {
-      width: 230px;
-      font-size: 1.1rem;
-      font-weight: 600;
-      padding: 14px;
-      border-radius: 12px;
-      margin: 8px 0;
-      transition: transform 0.2s;
-    }
-    .btn-menu:hover {
-      transform: translateY(-2px);
-    }
-    #darkModeBtn {
-      position: absolute;
-      top: 18px;
-      right: 18px;
-      border-radius: 50%;
-      font-size: 1.2rem;
-      padding: 8px 10px;
-    }
-    .footer {
-      position: absolute;
-      bottom: 20px;
-      text-align: center;
-      font-size: 0.85rem;
-      color: #6c757d;
+    input.readonly, select.readonly { background:#f3f3f3; color:#444; }
+    .cpk-box { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .cpk-value { font-size:1.2rem; font-weight:700; color:#111; }
+    .actions { display:flex; justify-content:space-between; gap:10px; margin-top:8px; }
+    .save-btn { background:#155d28; padding:12px 18px; font-size:15px; border-radius:10px; }
+    .small-muted { font-size:13px; color:var(--muted); margin-top:6px; }
+    @media (max-width:720px){
+      .fields { grid-template-columns: 1fr; }
+      .search-row { flex-direction:column; align-items:stretch; }
+      .btns { justify-content:space-between; }
     }
   </style>
 </head>
 <body>
-  <button id="darkModeBtn" class="btn btn-outline-dark">🌙</button>
-  <img src="logo.png" alt="Logo Souza" class="logo">
-  <h3 class="mb-4 text-center fw-bold" style="color: var(--verde-souza);">Painel Souza Transportes</h3>
+  <header>
+    <img src="logoPneu.png" alt="logo"/>
+    <h1>Controle de Pneus — App</h1>
+  </header>
 
-  <div class="d-flex flex-column align-items-center">
-    <a href="dashboard.html?aba=status" class="btn btn-success btn-menu">🚛 Status da Frota</a>
-    <a href="dashboard.html?aba=produtividade" class="btn btn-warning btn-menu">📈 Produtividade</a>
-    <a href="dashboard.html?aba=volume" class="btn btn-primary btn-menu">📊 Volume Entregue</a>
-  </div>
+  <main>
+    <div class="card">
+      <div class="search-row">
+        <input id="idPneu" placeholder="Digite o ID do pneu (ex: 12345)" type="text"/>
+        <div class="btns">
+          <button onclick="buscarPneu()">🔍 Buscar</button>
+          <button onclick="window.location.href='dashboard.html'">📊 Dashboard</button>
+          <button onclick="limparCache()">🧹 Limpar cache</button>
+        </div>
+      </div>
+      <div class="small-muted">
+        Busque pelo ID do pneu para carregar e editar os dados.
+        Campos preenchidos ficam bloqueados; vazios podem ser editados.
+      </div>
+    </div>
 
-  <div class="footer">© 2025 Souza Transportes</div>
-
-  <script>
-    const darkBtn = document.getElementById('darkModeBtn');
-    darkBtn.addEventListener('click', () => {
-      document.body.classList.toggle('dark-mode');
-    });
-  </script>
+    <div id="dadosPneu" class="layout"></div>
+  </main>
 </body>
 </html>
+
